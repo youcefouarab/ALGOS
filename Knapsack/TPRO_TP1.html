@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>TPRO TP1</title>
+	<script type="text/javascript">
+		function sac_dyn(objets, wmax) {
+			var gains = new Array();
+			gains[0] = new Array();
+			for (var j=0; j<=wmax; j++) gains[0][j] = 0;
+			for (var i=1; i<objets.length; i++) {
+				gains[i] = new Array();
+				gains[i][0] = 0;
+				for (var j=1; j<=wmax; j++) {
+					if(j<objets[i]["w"]) gains[i][j] = gains[i-1][j];
+					else {
+						var new_gain = objets[i]["v"] + gains[i-1][j-objets[i]["w"]];
+						if (new_gain>gains[i-1][j]) gains[i][j] = new_gain;
+						else gains[i][j] = gains[i-1][j];
+					}
+				}
+			}
+			var g = gains[objets.length-1][wmax];
+			for (var i=objets.length-1; i>0; i--) {
+				if (gains[i-1].find(element => element == g)==undefined) {
+					objets[i]["x"]=1;
+					g-=objets[i]["v"];
+				}
+			}
+			return gains;
+		}
+		function resoudre() {
+			document.getElementById("solution").innerHTML="";
+			var wmax = parseInt(document.getElementById("wmax").value);
+			if (!wmax) {
+				alert("Veuillez remplir tous les champs");
+				return;
+			}
+			var nb_objets = parseInt(document.getElementById("add").getAttribute("next"))-1;
+			var objets = new Array();
+			while(nb_objets>0) {
+				var w = parseInt(document.getElementById("w"+nb_objets.toString()).value);
+				var v = parseInt(document.getElementById("v"+nb_objets.toString()).value);
+				if ((!w)||(!v)) {
+					alert("Veuillez remplir tous les champs");
+					return;
+				}
+				objets[nb_objets] = new Array();
+				objets[nb_objets]["w"] = w;
+				objets[nb_objets]["v"] = v;
+				objets[nb_objets]["x"] = 0;
+				nb_objets--;
+			}
+			var tableData = sac_dyn(objets, wmax);
+			var solution = document.getElementById("solution");
+			var titre = document.createElement("H2");
+			titre.innerHTML = "<br><br>SOLUTION<br><br>";
+			solution.appendChild(titre);
+			titre = document.createElement("H3");
+			titre.innerHTML = "Objets choisis<br><br>";
+			solution.appendChild(titre);
+			for (var i = 1; i < objets.length; i++) {
+				if (objets[i]["x"]) {
+					var obj = document.createElement("LABEL");
+					obj.innerHTML = "Objet "+i.toString()+" ( w"+i.toString()+" = "+objets[i]["w"].toString()+", v"+i.toString()+" = "+objets[i]["v"].toString()+" )<br><br>";
+					solution.appendChild(obj);
+				}
+			}
+			titre = document.createElement("H3");
+			titre.innerHTML = "<br>Gain Max<br><br>";
+			solution.appendChild(titre);
+			titre = document.createElement("H3");
+			titre.innerHTML = tableData[tableData.length-1][wmax];
+			solution.appendChild(titre);
+			titre = document.createElement("H3");
+			titre.innerHTML = "<br>Table de programmation dynamique<br><br>";
+			solution.appendChild(titre);
+			var table = document.createElement('table');
+			var thead = document.createElement("tr");
+			for (var i = -1; i<=wmax; i++) {
+				var th = document.createElement("th");
+				if (i==-1) th.innerHTML = "Poids max:";
+				else th.innerHTML=i;
+				thead.appendChild(th);
+			}
+			table.appendChild(thead);
+			var tableBody = document.createElement('tbody');
+			var i = 0;
+			tableData.forEach(function(rowData) {
+				var row = document.createElement('tr');
+				var th = document.createElement("th");
+				if (i==0) th.innerHTML = "0 objets"; 
+				else th.innerHTML = "Objet "+i.toString();
+				i++;
+				row.appendChild(th);
+		    	rowData.forEach(function(cellData) {
+		    		var cell = document.createElement('td');
+		    		cell.appendChild(document.createTextNode(cellData));
+		    		row.appendChild(cell);
+		    	});
+		   		tableBody.appendChild(row);
+		  	});
+			table.appendChild(tableBody);
+			solution.appendChild(table);
+			window.location.hash = "";
+			window.location.hash = "#solution";
+		}
+		function ajouterObjet() {
+			document.getElementById("solution").innerHTML="";
+			var add = document.getElementById("add");
+			var objets = document.getElementById("objets");
+			var label = document.createElement("LABEL");
+			label.innerHTML = "Objet " + add.getAttribute("next")+":&nbsp;&nbsp;&nbsp;w"+add.getAttribute("next")+" = ";
+			label.setAttribute("id", "l1"+add.getAttribute("next"));
+			label.setAttribute("for", "w"+add.getAttribute("next"));
+			objets.appendChild(label);
+			var poids = document.createElement("INPUT");
+			poids.setAttribute("type", "number");
+			poids.setAttribute("id", "w"+add.getAttribute("next"));
+			poids.setAttribute("placeholder", "Poids (w"+add.getAttribute("next")+")");
+			poids.setAttribute("required", "required");
+			objets.appendChild(poids);
+			label = document.createElement("LABEL");
+			label.innerHTML = "v"+add.getAttribute("next")+" = ";
+			label.setAttribute("id", "l2"+add.getAttribute("next"));
+			label.setAttribute("for", "v"+add.getAttribute("next"));
+			objets.appendChild(label);
+			var valeur = document.createElement("INPUT");
+			valeur.setAttribute("type", "number");
+			valeur.setAttribute("id", "v"+add.getAttribute("next"));
+			valeur.setAttribute("placeholder", "Valeur (v"+add.getAttribute("next")+")");
+			valeur.setAttribute("required", "required");
+			objets.appendChild(valeur);
+			var br = document.createElement("BR");
+			br.setAttribute("id", "b1"+add.getAttribute("next"));
+			objets.appendChild(br);
+			var del = document.getElementById("del");
+			del.innerHTML = " - Supprimer objet "+add.getAttribute("next");
+			del.removeAttribute("disabled");
+			del.setAttribute("onclick", "supprimerObjet("+add.getAttribute("next")+")");
+			var res = document.getElementById("res");
+			res.removeAttribute("disabled");
+			add.setAttribute("next", parseInt(add.getAttribute("next"))+1);
+		}
+		function supprimerObjet(id) {
+			document.getElementById("solution").innerHTML="";
+			var elt = document.getElementById("l1"+id);
+			elt.parentNode.removeChild(elt);
+			var elt = document.getElementById("l2"+id);
+			elt.parentNode.removeChild(elt);
+			elt = document.getElementById("w"+id);
+			elt.parentNode.removeChild(elt);
+			elt = document.getElementById("v"+id);
+			elt.parentNode.removeChild(elt);
+			elt = document.getElementById("b1"+id);
+			elt.parentNode.removeChild(elt);
+			var add = document.getElementById("add");
+			add.setAttribute("next", parseInt(add.getAttribute("next"))-2);
+			var supp = document.getElementById("del");
+			if (add.getAttribute("next")!="0") {
+				supp.innerHTML = " - Supprimer objet "+add.getAttribute("next");
+				supp.setAttribute("onclick", "supprimerObjet("+add.getAttribute("next")+")");
+			} else {
+				supp.innerHTML = " - Supprimer objet";
+				supp.removeAttribute("onclick");
+				supp.setAttribute("disabled", "disabled");
+				var res = document.getElementById("res");
+				res.setAttribute("disabled", "disabled");
+			} 
+			add.setAttribute("next", parseInt(add.getAttribute("next"))+1);
+		}
+		function exemple(ex) {
+			switch(ex) {
+				case 1: {
+					document.getElementById("wmax").value="10";
+					document.getElementById("objets").innerHTML="";
+					document.getElementById("solution").innerHTML="";
+					document.getElementById("add").setAttribute("next", "1");
+					ajouterObjet();
+					document.getElementById("w1").value="7";
+					document.getElementById("v1").value="11";
+					ajouterObjet();
+					document.getElementById("w2").value="6";
+					document.getElementById("v2").value="8";
+					ajouterObjet();
+					document.getElementById("w3").value="4";
+					document.getElementById("v3").value="5";
+					break;
+				}
+				case 2: {
+					document.getElementById("wmax").value="7";
+					document.getElementById("objets").innerHTML="";
+					document.getElementById("solution").innerHTML="";
+					document.getElementById("add").setAttribute("next", "1");
+					ajouterObjet();
+					document.getElementById("w1").value="1";
+					document.getElementById("v1").value="1";
+					ajouterObjet();
+					document.getElementById("w2").value="3";
+					document.getElementById("v2").value="4";
+					ajouterObjet();
+					document.getElementById("w3").value="4";
+					document.getElementById("v3").value="5";
+					ajouterObjet();
+					document.getElementById("w4").value="5";
+					document.getElementById("v4").value="7";
+					ajouterObjet();
+					document.getElementById("w5").value="1";
+					document.getElementById("v5").value="9";
+					break;
+				}
+				case 3: {
+					document.getElementById("wmax").value="15";
+					document.getElementById("objets").innerHTML="";
+					document.getElementById("solution").innerHTML="";
+					document.getElementById("add").setAttribute("next", "1");
+					ajouterObjet();
+					document.getElementById("w1").value="2";
+					document.getElementById("v1").value="10";
+					ajouterObjet();
+					document.getElementById("w2").value="3";
+					document.getElementById("v2").value="5";
+					ajouterObjet();
+					document.getElementById("w3").value="5";
+					document.getElementById("v3").value="15";
+					ajouterObjet();
+					document.getElementById("w4").value="7";
+					document.getElementById("v4").value="7";
+					ajouterObjet();
+					document.getElementById("w5").value="1";
+					document.getElementById("v5").value="6";
+					ajouterObjet();
+					document.getElementById("w6").value="4";
+					document.getElementById("v6").value="18";
+					ajouterObjet();
+					document.getElementById("w7").value="1";
+					document.getElementById("v7").value="3";
+					break;
+				}
+			}
+		}
+	</script>
+	<style type="text/css">
+		* {
+			font-family: "Arial", sans-serif;
+			font-weight: bold;
+		}
+		label, input, button {
+			margin: 10px;
+			padding: 5px;
+		}
+		table, td, th {
+			border: 1px solid #000;
+			text-align: center;
+		}
+		td, th {
+			padding: 10px;
+		}
+		th {
+			background-color: #eee;
+		}
+		h3 {
+			text-decoration: underline;
+		}
+		input {
+			margin: 10px 0;
+			max-width: 120px;
+		}
+	</style>
+</head>
+<body>
+	<center><b>
+		<div id="body">
+			<br><br>
+			<h2>TPRO TP1<br>PROGRAMMATION DYNAMIQUE</h2>
+			<h2>PROBLEME DU SAC A DOS</h2><br>
+			<button onclick="exemple(1)">Exemple 1</button>
+			<button onclick="exemple(2)">Exemple 2</button>
+			<button onclick="exemple(3)">Exemple 3</button><br><br><br>
+			<label>Poids max (W) =</label>
+			<input type="number" id="wmax" placeholder="Poids max (W)" required="required"><br>
+			<div id="objets"></div>
+			<div>
+				<button id="add" onclick="ajouterObjet()" next="1"> + Ajouter objet</button>
+				<button id="del" disabled="disabled"> - Supprimer objet</button>
+				<button id="res" onclick="resoudre()" disabled="disabled">RESOUDRE</button>
+			</div>
+			<div id="solution"></div>
+		</div><br><br><br>
+	</b></center>
+</body>
+</html>

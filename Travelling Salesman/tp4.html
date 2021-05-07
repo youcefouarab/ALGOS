@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>TP4 - TPGO</title>
+	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+	<meta http-equiv="Pragma" content="no-cache" />
+	<meta http-equiv="Expires" content="0" />
+	<script src="anychart-core.min.js"></script>
+    <script src="anychart-graph.min.js"></script>
+    <script src="anychart-data-adapter.min.js"></script>
+	<meta charset="utf-8">
+	<script src="jquery-3.3.1.min.js"></script>
+    <script src="jquery-3.3.1.js"></script>
+	<style type="text/css">
+		* {
+			font-family: "Arial", sans-serif;
+			font-weight: bold;
+			padding: 0;
+			margin: 0;
+		}
+		label, input, button, select {
+			padding: 5px;
+		}
+		button {
+			margin: 5px;
+		}
+		table, td, th {
+			border: 1px solid #000;
+			text-align: center;
+		}
+		th {
+			padding: 10px;
+		}
+		th, td {
+			background-color: #eee;
+		}
+		h3 {
+			text-decoration: underline;
+		}
+		input {
+			max-width: 50px;
+		}
+		select {
+			max-width: 70px;
+		}
+		#container {
+	        width: 50%;
+			height: 90%;
+	        position: absolute;
+			right: 0;
+	      }
+		#construct {
+			width: 50%;
+			height: 100%;
+			overflow: scroll;
+			position: absolute;
+			left: 0;
+		}
+		#refresh {
+			position: absolute;
+			right: 0;
+		}
+		#save {
+			position: absolute;
+			right: 100px;
+		}
+		#articul {
+			font-size: 20px;
+		}
+		#sol {
+			width: fit-content;
+			padding: 20px;
+			border-radius: 5px;
+			background-color: #95ff80;
+		}
+		#sol h2 {
+			padding: 10px;
+		}
+	</style>
+	<script type="text/javascript">
+		$(document).ready(function(){
+			function indexOf(data, id, from, to) {
+				var i = 0;
+				while  (i < data.length) {
+					if (id)
+						if (data[i].id == id)
+							return i;
+					if (from && !to)
+						if (data[i].from == from)
+							return i;
+					if (!from && to)
+						if (data[i].to == to)
+							return i;
+					if (from && to)
+						if (data[i].from == from && data[i].to == to)
+							return i;
+					i++;
+				}
+				return -1;
+			}
+
+			function save(data){
+				var json = JSON.stringify(data);
+				$.post("write.php", {data: json}, function(result){
+					if (result != "success") alert("Une erreur est survenue!");
+				});
+			}
+
+			var data = $.ajax({
+				url: "data.json",
+			    async: false
+			});
+			data = JSON.parse(data.responseText);
+
+			var positions = new Array();
+			positions.push({x : 200, y : 27});
+			positions.push({x : 0, y : 167});
+			positions.push({x : 0, y : 368});
+			positions.push({x : 205, y : 508});
+			positions.push({x : 406, y : 368});
+			positions.push({x : 406, y : 167});
+
+			$(document).on("click", "#aj_sommet", function(){
+				data.nodes = new Array();
+				data.edges = new Array();
+				var nb = parseInt($("#sommet").val());
+				$("#sommet").val("");
+				var noms = $("#noms").val();
+				for (var j = 0; j < nb; j++) {
+					var id = j; 
+					if (noms == "alpha") id = String.fromCharCode(j+65);
+					for (var i = 0; i < data.nodes.length; i++) {
+						data.edges.push({"from": id, "to": data.nodes[i].id});
+					}
+					var x = 0; if (i < 6) x = positions[i].x;
+					var y = 0; if (i < 6) y = positions[i].y;
+					data.nodes.push({"id": id, "x": x, "y": y});
+				}
+				draw(data);
+				var html = "<table><tr><th></th>";
+				for (var j = 0; j < nb; j++) {
+					html += "<th>"+data.nodes[j].id+"</th>";
+				}
+				html += "</tr>";
+				for (var i = 0; i < nb; i++) {
+					html += "<tr><th>"+data.nodes[i].id+"</th>";
+					for (var j = 0; j < nb; j++) {
+						if (i < j) html += '<td><input type="number" id="'+data.nodes[j].id+data.nodes[i].id+'"></td>';
+						else html += '<td></td>';
+					}
+					html += "</tr>";
+				}
+				html += '</table><br><br><button id="def_vals">Définir valeurs</button>';
+				$("#vals").html(html);
+			});
+
+			$(document).on("click", "#def_vals", function(){
+				var nb = data.edges.length;
+				for (var k = 0; k < nb; k++) {
+					var i = data.edges[k].from;
+					var j = data.edges[k].to;
+					var val = $("#"+i.toString()+j.toString()).val();
+					data.edges[k].val = val;
+				}
+				draw(data);
+				$("#vals").html("");
+			});
+
+			$(document).on("click", "#refresh", function(){
+				draw(data);
+			});
+
+			$(document).on("click", "#save", function(){
+				save(data);
+			});
+
+			var chart;
+
+			function draw(data) {
+				$("#container").html("");
+			    chart = anychart.graph(data);
+			    chart.title("Graphe");
+			    var nodes = chart.nodes();
+			    nodes.normal().height(30);
+			    nodes.hovered().height(45);
+			    nodes.selected().height(45);
+			    nodes.normal().stroke(null);
+			    nodes.hovered().stroke("#333333", 3);
+			    nodes.selected().stroke("#333333", 3);
+			    /*var sol = chart.group("sol");
+			    if (sol) {
+					sol.normal().height(45);
+			   		sol.normal().fill("#eb4034");
+			   		sol.normal().stroke("#eb4034", 3);
+			    }*/
+		        chart.nodes().labels().enabled(true);
+			    chart.nodes().labels().format("{%id}");
+			    chart.nodes().labels().fontSize(12);
+			    chart.nodes().labels().fontWeight(600);
+			    chart.edges().labels().enabled(true);
+			    chart.edges().labels().format("{%val}");
+			    chart.edges().labels().fontSize(12);
+			    chart.edges().labels().fontWeight(600);
+			    if (data.nodes.length === 6) chart.layout().type("fixed");
+			    //chart.rotation(-90);
+			    chart.container("container").draw();
+			}
+
+			draw(data);
+
+			function creerGraphe(data) {
+				var graphe = new Array();
+				for (var i = 0; i < data.nodes.length; i++) {
+					var id = data.nodes[i].id;
+					var next = new Array();
+					for (var j = 0; j < data.edges.length; j++) {
+						if (id == data.edges[j].from) next.push({i: indexOf(data.nodes, data.edges[j].to), val: data.edges[j].val});
+						else if (id == data.edges[j].to) next.push({i: indexOf(data.nodes, data.edges[j].from), val: data.edges[j].val});
+					}
+					graphe.push({"id": id, "visited": false, "next" : next});
+				}
+				return graphe;
+			}
+
+			function distance(graphe, path) {
+				var dist = 0;
+				for (var i = 1; i < path.length; i++) {
+					var index = indexOf(data.edges, null, graphe[path[i-1]].id, graphe[path[i]].id);
+					if (index == -1) index = indexOf(data.edges, null, graphe[path[i]].id, graphe[path[i-1]].id);
+					dist += parseInt(data.edges[index].val);
+				}
+				var index = indexOf(data.edges, null, graphe[path[i-1]].id, graphe[path[0]].id);
+				if (index == -1) index = indexOf(data.edges, null, graphe[path[0]].id, graphe[path[i-1]].id);
+				dist += parseInt(data.edges[index].val);
+				return dist;
+			}
+
+			var DIST = null;
+
+			var paths = new Array();
+
+			function hamilton(graphe, v, path) {
+				if (path.length == graphe.length) {
+					//console.log(path, distance(graphe, path));
+					if (!DIST) DIST = distance(graphe, path);
+					if (distance(graphe, path) < DIST) {
+						DIST = distance(graphe, path);
+						paths = new Array();
+						var PATH = new Array();
+						for (var j = 0; j < path.length; j++) {
+							PATH.push(path[j]);
+						}
+						paths.push({path:PATH, dist:DIST});
+					} else if (distance(graphe, path) === DIST) {
+						var PATH = new Array();
+						for (var j = 0; j < path.length; j++) {
+							PATH.push(path[j]);
+						}
+						paths.push({path:PATH, dist:DIST});	
+					}
+					return;
+				}
+				for (var i = 0; i < graphe[v].next.length; i++) {
+					var w = graphe[v].next[i].i;
+					if (!graphe[w].visited) {
+						graphe[w].visited = true;
+						path.push(w);
+						hamilton(graphe, w, path);
+						graphe[w].visited = false;
+						path.pop();
+					}
+				}
+
+			}
+
+			function exact(depart) {
+					paths = new Array();
+					DIST = null;
+					var path = new Array();
+					path.push(depart);
+					var graphe = creerGraphe(data);
+					graphe[depart].visited = true;
+					hamilton(graphe, depart, path);
+					var html = "<h3>Solution exacte</h3><br><br><h1><u>Coût = "+paths[0].dist.toString()+"</u><br><br></h1>";
+					for (var j = 0; j < paths.length; j++) {
+						html += "<h2>";
+						for (var i = 0; i < paths[j].path.length; i++) {
+							html += graphe[paths[j].path[i]].id+"-";
+						}
+						html += graphe[depart].id+'<button class="voir" j="'+j.toString()+'"">Voir</button></h2>';
+					}
+					$("#sol").html(html);
+			}
+
+			$(document).on("click", "#exact", function(){
+				for (var i = 0; i < data.edges.length; i++) {
+					data.edges[i].normal = {};
+					data.edges[i].hovered = {};
+					data.edges[i].selected = {};
+				}
+				draw(data);
+				if ($("#depart").val() && parseInt($("#depart").val()) > 0) {
+					exact(indexOf(data.nodes, $("#depart").val()));
+				} else {
+					exact(0);
+				}
+			});
+
+			$(document).on("click", ".voir", function(){
+				//console.log("here");
+				for (var i = 0; i < data.edges.length; i++) {
+					data.edges[i].normal = {};
+					data.edges[i].hovered = {};
+					data.edges[i].selected = {};
+				}
+				var path = paths[parseInt($(this).attr("j"))].path;
+				console.log(path);
+				for (var i = 1; i < path.length; i++) {
+					var index = indexOf(data.edges, null, data.nodes[path[i]].id, data.nodes[path[i-1]].id);
+					if (index == -1) index = indexOf(data.edges, null, data.nodes[path[i-1]].id, data.nodes[path[i]].id);
+					console.log(index);
+					data.edges[index].normal = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+					data.edges[index].hovered = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+					data.edges[index].selected = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+				}
+				var index = indexOf(data.edges, null, data.nodes[path[0]].id, data.nodes[path[path.length-1]].id);
+				if (index == -1) index = indexOf(data.edges, null, data.nodes[path[path.length-1]].id, data.nodes[path[0]].id);
+				console.log(index);
+				data.edges[index].normal = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+				data.edges[index].hovered = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+				data.edges[index].selected = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+				draw(data);
+			});
+
+			function tri(edges) {
+				var aretes = new Array();
+				for (var i = 0; i < edges.length; i++) {
+					aretes.push({from:edges[i].from, to:edges[i].to, val:edges[i].val});
+				}
+				aretes.sort(function (a, b) {
+					return parseInt(a.val) - parseInt(b.val);
+				});
+				return aretes;
+			}
+			
+			function deg2(path) {
+				let visited = [];
+				var deg2 = true;
+				path.forEach(function(a){
+					if (visited[a.from]) {
+						visited[a.from]++;
+						if (visited[a.from] > 2) {
+							deg2 = false;
+						}
+					} else visited[a.from] = 1;
+					if (visited[a.to]) {
+						visited[a.to]++;
+						if (visited[a.to] > 2) {
+							deg2 = false;
+						}
+					} else visited[a.to] = 1;
+				});
+				return deg2;
+			}
+
+			function cycleUtil(graphe, v, visited, parent) {
+				visited[v] = true;
+				var cycle = false;
+				graphe[v].forEach(function(i){
+					if (visited[i] == false) {
+						if (cycleUtil(graphe, i, visited, v)) {
+							cycle = true;
+						}
+					} else if (parent != i) {
+						cycle = true;
+					}
+				});
+				return cycle;
+
+			}
+
+			function cycle(graphe) {
+				var cycle = false;
+				let visited = [];
+				for (var i = 0; i < graphe.length; i++) {
+					visited[i] = false;
+				}
+				for (var i = 0; i < graphe.length; i++) {
+					if (visited[i] == false) {
+						if (cycleUtil(graphe, i, visited, -1)) cycle = true;
+					}
+				}
+				return cycle;
+			}
+
+			function heuristique() {
+				var aretes = tri(data.edges);
+				var depart1 = aretes[0].from;
+				var depart2 = aretes[0].to;
+				let path = [];
+				var graphe = new Array();
+				for (var i = 0; i < data.nodes.length; i++) {
+					graphe.push([]);
+				}
+				var k = 0;
+				for (var i = 0; i < aretes.length; i++) {
+					path[k] = {from: aretes[i].from, to: aretes[i].to, val: aretes[i].val};
+					var from = indexOf(data.nodes, aretes[i].from);
+					var to = indexOf(data.nodes, aretes[i].to);
+					graphe[from].push(to);
+					graphe[to].push(from);
+					if (k === graphe.length-1) {
+						if (deg2(path)) {
+							return path;
+						}
+					} else {
+						if (!cycle(graphe) && deg2(path)) k++;
+						else {
+							graphe[from].pop();
+							graphe[to].pop();
+						}
+					}
+				}
+
+			}
+
+			function heur(path, depart) {
+				for (var i = 0; i < data.edges.length; i++) {
+					data.edges[i].normal = {};
+					data.edges[i].hovered = {};
+					data.edges[i].selected = {};
+				}
+				var cout = 0;
+				path.forEach(function(arete){
+					var index = indexOf(data.edges, null, arete.from, arete.to);
+					data.edges[index].normal = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+					data.edges[index].hovered = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+					data.edges[index].selected = {stroke:{color: "#ffa000", thickness: "5", dash: "10 5", lineJoin: "round"}};
+					cout += parseInt(arete.val);
+				});
+				draw(data);
+				var html = "<h3>Heuristique</h3><br><br><h1><u>Coût = "+cout.toString()+"</u></h1>";
+				$("#sol").html(html);
+			}
+
+			$(document).on("click", "#heur", function(){
+				heur(heuristique());
+			});
+		});
+
+	</script>
+</head>
+<body>
+	<div id="construct">
+		<center>
+			<br><br><br>
+			<h2>TPRO TP4<br>LES HEURISTIQUES</h2>
+			<h2>PROBLEME DU VOYAGEUR DE COMMERCE</h2>
+			<br><br><br>
+			<label for="sommet">Nb sommets</label>
+			<input type="text" id="sommet">
+			<label for="noms">Noms</label>
+			<select id="noms">
+				<option value="num">-</option>
+				<option value="num">Num. (1, 2...)</option>
+				<option value="alpha">Alph. (A, B...)</option>
+			</select>
+			<button id="aj_sommet">Créer</button><br><br>
+			<div id="vals"></div>
+			<br><br>
+			<label for="depart">Départ</label>
+			<input type="text" id="depart"><br><br>
+			<button id="heur">Heuristique</button>
+			<button id="exact">Exacte</button>
+			<br><br><br><br>
+			<div id="sol"></div>
+			<br><br><br><br>
+		</center>
+	</div>
+	<div id="container"></div>
+	<button id="refresh">Actualiser</button>
+	<button id="save">Sauvegarder</button>
+</body>
+</html>

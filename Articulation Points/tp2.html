@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>TP2 - TPGO</title>
+	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+	<meta http-equiv="Pragma" content="no-cache" />
+	<meta http-equiv="Expires" content="0" />
+	<script src="anychart-core.min.js"></script>
+    <script src="anychart-graph.min.js"></script>
+    <script src="anychart-data-adapter.min.js"></script>
+	<meta charset="utf-8">
+	<script src="jquery-3.3.1.min.js"></script>
+    <script src="jquery-3.3.1.js"></script>
+	<style type="text/css">
+		* {
+			font-family: "Arial", sans-serif;
+			font-weight: bold;
+			padding: 0;
+			margin: 0;
+		}
+		label, input, button, select {
+			margin: 10px;
+			padding: 5px;
+		}
+		table, td, th {
+			border: 1px solid #000;
+			text-align: center;
+		}
+		td, th {
+			padding: 10px;
+		}
+		th {
+			background-color: #eee;
+		}
+		h3 {
+			text-decoration: underline;
+		}
+		input, select {
+			margin: 10px 0;
+			max-width: 70px;
+		}
+		#container {
+	        width: 50%;
+			height: 90%;
+	        position: absolute;
+			right: 0;
+	      }
+		#construct {
+			width: 50%;
+			height: 90%;
+			position: absolute;
+			left: 0;
+		}
+		#refresh {
+			position: absolute;
+			right: 0;
+		}
+		#save {
+			position: absolute;
+			right: 100px;
+		}
+		#articul {
+			font-size: 20px;
+		}
+	</style>
+	<script type="text/javascript">
+		$(document).ready(function(){
+			function indexOf(data, id, from, to) {
+				var i = 0;
+				while  (i < data.length) {
+					if (id)
+						if (data[i].id == id)
+							return i;
+					if (from && !to)
+						if (data[i].from == from)
+							return i;
+					if (!from && to)
+						if (data[i].to == to)
+							return i;
+					if (from && to)
+						if (data[i].from == from && data[i].to == to)
+							return i;
+					i++;
+				}
+				return -1;
+			}
+
+			function save(data){
+				var json = JSON.stringify(data);
+				$.post("write.php", {data: json}, function(result){
+					if (result != "success") alert("Une erreur est survenue!");
+				});
+			}
+
+			var data = $.ajax({
+				url: "data.json",
+			    async: false
+			});
+			data = JSON.parse(data.responseText);
+
+			$(document).on("click", "#aj_sommet", function(){
+				var id = $("#sommet").val();
+				if (indexOf(data.nodes, id, null, null) == -1) {
+					$("#sommet").val("");
+					data.nodes.push({"id": id});
+					draw(data);
+				} else alert(id + " existe déjà!");
+			});
+
+			$(document).on("click", "#supp_sommet", function(){
+				var id = $("#sommet").val();
+				var index = indexOf(data.nodes, id, null, null);
+				if (index > -1) {
+					$("#sommet").val("");
+					data.nodes.splice(index, 1);
+					while (index > -1) {
+						index = indexOf(data.edges, null, id, null);
+						if (index != -1) data.edges.splice(index, 1);
+					}
+					index = indexOf(data.edges, null, null, id);
+					while (index > -1) {
+						if (index != -1) data.edges.splice(index, 1);
+						index = indexOf(data.edges, null, null, id);
+					}
+					draw(data);
+				} else alert(id + " n'existe pas!");
+			});
+
+			$(document).on("click", "#aj_arc", function(){
+				var src = $("#arc_src").val();
+				var dst = $("#arc_dst").val();
+				if (indexOf(data.nodes, src, null, null) > -1) {
+					if (indexOf(data.nodes, dst, null, null) > -1) {
+						if (indexOf(data.edges, null, src, dst) == -1 && indexOf(data.edges, null, dst, src) == -1) {
+							$("#arc_src").val("");
+							$("#arc_dst").val("");
+							data.edges.push({"from": src, "to": dst});
+							draw(data);
+						} else alert(src + " vers " + dst + " existe déjà!");
+					} else alert(dst + " n'existe pas!");
+				} else alert(src + " n'existe pas!");
+			});
+
+			$(document).on("click", "#supp_arc", function(){
+				var src = $("#arc_src").val();
+				var dst = $("#arc_dst").val();
+				var index = indexOf(data.edges, null, src, dst);
+				if (index > -1) {
+					$("#arc_src").val("");
+					$("#arc_dst").val("");
+					data.edges.splice(index, 1);
+					draw(data);
+				} else {
+					index = indexOf(data.edges, null, dst, src);
+					if (index > -1) {
+						$("#arc_src").val("");
+						$("#arc_dst").val("");
+						data.edges.splice(index, 1);
+						draw(data);
+					} else alert(src + " vers " + dst + " n'existe pas!");
+				}
+			});
+
+			$(document).on("click", "#refresh", function(){
+				draw(data);
+			});
+
+			$(document).on("click", "#save", function(){
+				save(data);
+			});
+
+			var chart;
+
+			function draw(data) {
+				$("#container").html("");
+			    chart = anychart.graph(data);
+			    chart.title("Graphe");
+			    var nodes = chart.nodes();
+			    nodes.normal().height(30);
+			    nodes.hovered().height(45);
+			    nodes.selected().height(45);
+			    nodes.normal().stroke(null);
+			    nodes.hovered().stroke("#333333", 3);
+			    nodes.selected().stroke("#333333", 3);
+			    var articul = chart.group("articul");
+			    if (articul) {
+					articul.normal().height(45);
+			   		articul.normal().fill("#eb4034");
+			   		articul.normal().stroke("#eb4034", 3);
+			    }
+		        chart.nodes().labels().enabled(true);
+			    chart.nodes().labels().format("{%id}");
+			    chart.nodes().labels().fontSize(12);
+			    chart.nodes().labels().fontWeight(600);
+			    chart.container("container").draw();
+			}
+
+			draw(data);
+
+			function dfs(graphe, v, c) {
+				graphe[v].visited = true;
+				c.push(v);
+				//console.log(graphe[v].id);
+				for (var i = 0; i < graphe[v].next.length; i++)
+					if (!graphe[graphe[v].next[i]].deleted && !graphe[graphe[v].next[i]].visited) dfs(graphe, graphe[v].next[i], c);
+			}
+
+			function connexe(graphe) {
+				var cc = new Array();
+				for (var i = 0; i < graphe.length; i++) {
+					var c = new Array();
+					if (!graphe[i].deleted && !graphe[i].visited) dfs(graphe, i, c);
+					if (c.length) cc.push(c);
+					//console.log("-");
+				}
+				return cc;
+			}
+
+			function articulation(data) {
+				var graphe = new Array();
+				for (var i = 0; i < data.nodes.length; i++) {
+					var id = data.nodes[i].id;
+					var next = new Array();
+					for (var j = 0; j < data.edges.length; j++) {
+						if (data.edges[j].from == id) next.push(indexOf(data.nodes, data.edges[j].to, null, null));
+						else if (data.edges[j].to == id) next.push(indexOf(data.nodes, data.edges[j].from, null, null));
+					}
+					graphe.push({"id": id, "visited": false, "deleted": false, "next" : next});
+				}
+				var cc = connexe(graphe);
+				var articul = new Array();
+				for (var i = 0; i < graphe.length; i++) {
+					for (var j = 0; j < graphe.length; j++) graphe[j].visited = false;
+					graphe[i].deleted = true;
+					var new_cc = connexe(graphe);
+					graphe[i].deleted = false;
+					if (new_cc.length > cc.length) {
+						articul.push(graphe[i].id);
+					}
+				}
+				for (var i = 0; i < articul.length; i++)
+					data.nodes[indexOf(data.nodes, articul[i], null, null)] = {"id": articul[i], "group": "articul"};
+				draw(data);
+				for (var i = 0; i < articul.length; i++)
+					data.nodes[indexOf(data.nodes, articul[i], null, null)] = {"id": articul[i]};
+			}
+
+			$(document).on("click", "#articul", function(){
+				articulation(data);
+			});
+		});
+
+	</script>
+</head>
+<body>
+	<div id="construct">
+		<center>
+			<br><br><br>
+			<h2>TPRO TP2<br>EXPLORATION SYSTEMATIQUE</h2>
+			<h2>POINTS D'ARTICULATION D'UN GRAPHE</h2>
+			<br><br><br>
+			<h3>Ajouter / supprimer les sommets</h3>
+			<br><br><br>
+			<label for="sommet">Sommet</label>
+			<input type="text" id="sommet">
+			<button id="aj_sommet">Ajouter</button>
+			<button id="supp_sommet">Supprimer</button><br>
+			<br><br><br>
+			<h3>Ajouter / supprimer les arcs</h3>
+			<br><br><br>
+			<label for="arc_src">Arc de</label>
+			<input type="text" id="arc_src">
+			<label for="arc_dst">vers</label>
+			<input type="text" id="arc_dst">
+			<button id="aj_arc">Ajouter</button>
+			<button id="supp_arc">Supprimer</button>
+			<br><br><br><br>
+			<button id="articul">Trouver les points d'articulation</button>
+		</center>
+	</div>
+	<div id="container"></div>
+	<button id="refresh">Actualiser</button>
+	<button id="save">Sauvegarder</button>
+	<div id="sol"></div>
+</body>
+</html>
